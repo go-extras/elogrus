@@ -1,20 +1,20 @@
 package elogrus
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"reflect"
 	"testing"
 	"time"
-
-	"github.com/olivere/elastic/v7"
-	"github.com/sirupsen/logrus"
 )
 
-type NewHookFunc func(client *elastic.Client, host string, level logrus.Level, index string) (*ElasticHook, error)
+type NewHookFunc func(client *elasticsearch.Client, host string, level logrus.Level, index string) (*ElasticHook, error)
 
 func TestSyncHook(t *testing.T) {
 	hookTest(NewElasticHook, "sync-log", t)
@@ -37,18 +37,15 @@ func hookTest(hookfunc NewHookFunc, indexName string, t *testing.T) {
 		fmt.Println(string(buf))
 	}
 
-	client, err := elastic.NewClient(
-		elastic.SetURL("http://127.0.0.1:7777"),
-		elastic.SetHealthcheck(false),
-		elastic.SetSniff(false))
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{"http://127.0.0.1:7777"},
+	})
 
 	if err != nil {
 		log.Panic(err)
 	}
 
-	client.
-		DeleteIndex(indexName).
-		Do(context.TODO())
+	client.Indices.Delete([]string{indexName})
 
 	hook, err := hookfunc(client, "localhost", logrus.DebugLevel, indexName)
 	if err != nil {
@@ -64,36 +61,84 @@ func hookTest(hookfunc NewHookFunc, indexName string, t *testing.T) {
 	// Allow time for data to be processed.
 	time.Sleep(2 * time.Second)
 
-	termQuery := elastic.NewTermQuery("Host", "localhost")
-	searchResult, err := client.Search().
-		Index(indexName).
-		Query(termQuery).
-		Do(context.TODO())
+	var buf bytes.Buffer
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"host": map[string]interface{}{
+					"value": "localhost",
+				},
+			},
+		},
+	}
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		log.Fatalf("Error encoding query: %s", err)
+	}
 
+	// Perform the search request.
+	res, err := client.Search(
+		client.Search.WithContext(context.Background()),
+		client.Search.WithIndex(indexName),
+		client.Search.WithBody(&buf),
+		client.Search.WithTrackTotalHits(true),
+		client.Search.WithPretty(),
+	)
 	if err != nil {
 		t.Errorf("Search error: %v", err)
 		t.FailNow()
 	}
+	defer res.Body.Close()
 
-	if searchResult.TotalHits() != int64(samples) {
-		t.Errorf("Not all logs pushed to elastic: expected %d got %d", samples, searchResult.TotalHits())
+	if res.IsError() {
+		var e map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+			t.Errorf("Error parsing the response body: %v", err)
+			t.FailNow()
+		} else {
+			// Print the response status and error information.
+			t.Errorf("[%s] %s: %s",
+				res.Status(),
+				e["error"].(map[string]interface{})["type"],
+				e["error"].(map[string]interface{})["reason"],
+			)
+			t.FailNow()
+		}
+	}
+
+	var r map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		t.Fatalf("Error parsing the response body: %s", err)
+	}
+
+	if r["hits"] == nil {
+		t.Fatalf("Missing hits")
+	}
+	if r["hits"].(map[string]interface{})["total"] == nil {
+		t.Fatalf("Missing total")
+	}
+	if r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"] == nil {
+		t.Fatalf("Missing value")
+	}
+	val, ok := r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64)
+	if !ok {
+		t.Fatalf("Value is not float64 %T", r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"])
+	}
+	if int(val) != samples {
+		t.Errorf("Not all logs pushed to elastic: expected %d got %v", samples, val)
 		t.FailNow()
 	}
 }
 
 func TestError(t *testing.T) {
-	client, err := elastic.NewClient(
-		elastic.SetURL("http://localhost:7777"),
-		elastic.SetHealthcheck(false),
-		elastic.SetSniff(false))
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{"http://127.0.0.1:7777"},
+	})
 
 	if err != nil {
 		log.Panic(err)
 	}
 
-	client.
-		DeleteIndex("errorlog").
-		Do(context.TODO())
+	client.Indices.Delete([]string{"errorlog"})
 
 	hook, err := NewElasticHook(client, "localhost", logrus.DebugLevel, "errorlog")
 	if err != nil {
@@ -107,24 +152,88 @@ func TestError(t *testing.T) {
 
 	// Allow time for data to be processed.
 	time.Sleep(1 * time.Second)
-	termQuery := elastic.NewTermQuery("Host", "localhost")
-	searchResult, err := client.Search().
-		Index("errorlog").
-		Query(termQuery).
-		Do(context.TODO())
 
-	if !(searchResult.TotalHits() >= int64(1)) {
+	var buf bytes.Buffer
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"host": map[string]interface{}{
+					"value": "localhost",
+				},
+			},
+		},
+	}
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		log.Fatalf("Error encoding query: %s", err)
+	}
+
+	res, err := client.Search(
+		client.Search.WithContext(context.Background()),
+		client.Search.WithIndex("errorlog"),
+		client.Search.WithBody(&buf),
+		client.Search.WithTrackTotalHits(true),
+		client.Search.WithPretty(),
+	)
+	if err != nil {
+		t.Errorf("Search error: %v", err)
+		t.FailNow()
+	}
+	defer res.Body.Close()
+
+	if err != nil {
+		t.Errorf("Search error: %v", err)
+		t.FailNow()
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		var e map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+			t.Errorf("Error parsing the response body: %v", err)
+			t.FailNow()
+		} else {
+			// Print the response status and error information.
+			t.Errorf("[%s] %s: %s",
+				res.Status(),
+				e["error"].(map[string]interface{})["type"],
+				e["error"].(map[string]interface{})["reason"],
+			)
+			t.FailNow()
+		}
+	}
+
+	var r map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		t.Fatalf("Error parsing the response body: %s", err)
+	}
+
+	if r["hits"] == nil {
+		t.Fatalf("Missing hits")
+	}
+	if r["hits"].(map[string]interface{})["total"] == nil {
+		t.Fatalf("Missing total")
+	}
+	if r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"] == nil {
+		t.Fatalf("Missing value")
+	}
+	val, ok := r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64)
+	if !ok {
+		t.Fatalf("Value is not float64 %T", r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"])
+	}
+	if !(val > 1) {
 		t.Error("No log created")
 		t.FailNow()
 	}
 
-	data := searchResult.Each(reflect.TypeOf(logrus.Entry{}))
-	for _, d := range data {
-		if l, ok := d.(logrus.Entry); ok {
-			if errData, ok := l.Data[logrus.ErrorKey]; !ok && errData != "this is error" {
-				t.Error("Error not serialized properly")
-				t.FailNow()
-			}
-		}
+	if r["hits"].(map[string]interface{})["hits"] == nil {
+		t.Fatalf("Missing hits.hits")
+	}
+	data, ok := r["hits"].(map[string]interface{})["hits"].([]map[string]interface{})
+	if !ok {
+		t.Fatalf("hits.hits is not []map[string]interface{}")
+	}
+
+	for _, v := range data {
+		log.Println(v["_id"]) // TODO: write actual tests
 	}
 }
