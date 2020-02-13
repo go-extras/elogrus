@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
-	"log"
+	"gopkg.in/go-extras/elogrus.v7/internal/bulk"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v7"
@@ -38,11 +40,11 @@ type ElasticHook struct {
 }
 
 type message struct {
-	Host      string `json:"host"`
-	Timestamp string `json:"@timestamp"`
-	Message   string `json:"message"`
+	Host      string        `json:"host"`
+	Timestamp string        `json:"@timestamp"`
+	Message   string        `json:"message"`
 	Data      logrus.Fields `json:"data"`
-	Level     string `json:"level"`
+	Level     string        `json:"level"`
 }
 
 // NewElasticHook creates new hook.
@@ -137,7 +139,7 @@ func newHookFuncAndFireFunc(client *elasticsearch.Client, host string, level log
 	}
 	if indexExistsResp.StatusCode == http.StatusNotFound {
 		createIndexResp, err := client.Indices.Create(indexFunc())
-		if err != nil || createIndexResp.IsError(){
+		if err != nil || createIndexResp.IsError() {
 			cancel()
 			return nil, ErrCannotCreateIndex
 		}
@@ -189,8 +191,8 @@ func syncFireFunc(entry *logrus.Entry, hook *ElasticHook) error {
 		return err
 	}
 	req := esapi.IndexRequest{
-		Index:      hook.index(),
-		Body:       bytes.NewReader(data),
+		Index: hook.index(),
+		Body:  bytes.NewReader(data),
 	}
 
 	// Perform the request with the client.
@@ -204,36 +206,66 @@ func syncFireFunc(entry *logrus.Entry, hook *ElasticHook) error {
 }
 
 // Create closure with bulk processor tied to fireFunc.
-// TODO: this code is not bulk anymore (although it uses bulk api), fix it!
+// Note: garbage collector will never be able to free memory allocated for bulkWriters
 func makeBulkFireFunc(client *elasticsearch.Client) (fireFunc, error) {
+	bulkWriters := make(map[*ElasticHook]*bulk.Writer)
+	var lock sync.RWMutex
+
+	getWriter := func(hook *ElasticHook) *bulk.Writer {
+		lock.RLock()
+		writer := bulkWriters[hook]
+		lock.RUnlock()
+		if writer != nil {
+			return writer
+		}
+		lock.Lock()
+		writer = bulkWriters[hook]
+		if writer != nil { // this is a second check to avoid sequential writes
+			lock.Unlock()
+			return writer
+		}
+
+		// long path, create a new writer
+		writer = bulk.NewBulkWriterWithErrorHandler(time.Second, func(data []byte) error {
+			res, err := client.Bulk(bytes.NewReader(data),
+				client.Bulk.WithIndex(hook.index()),
+			)
+			if err != nil {
+				return err
+			}
+			defer res.Body.Close()
+			if res.IsError() {
+				raw := make(map[string]interface{})
+				if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
+					return errors.New(fmt.Sprintf("Failure to to parse response body: %s", err.Error()))
+				} else {
+					return errors.New(fmt.Sprintf("Error: [%d] %s: %s",
+						res.StatusCode,
+						raw["error"].(map[string]interface{})["type"],
+						raw["error"].(map[string]interface{})["reason"],
+					))
+				}
+				// A successful response might still contain errors for particular documents...
+				//
+			}
+			return nil
+		}, func(data []byte, err error) {
+			// TODO: how to handle the error??
+			// panic(fmt.Sprintf("error: %s", err))
+		})
+		bulkWriters[hook] = writer
+		lock.Unlock()
+
+		return writer
+	}
+
 	return func(entry *logrus.Entry, hook *ElasticHook) error {
 		data, err := json.Marshal(createMessage(entry, hook))
 		if err != nil {
 			return err
 		}
-		data = append([]byte(`{"index":{}}`+"\n"), data...,)
-		data = append(data, '\n')
-		res, err := client.Bulk(bytes.NewReader(data),
-			client.Bulk.WithIndex(hook.index()),
-		)
-		if err != nil {
-			return err
-		}
-		defer res.Body.Close()
-		if res.IsError() {
-			raw := make(map[string]interface{})
-			if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
-				log.Fatalf("Failure to to parse response body: %s", err)
-			} else {
-				log.Printf("  Error: [%d] %s: %s",
-					res.StatusCode,
-					raw["error"].(map[string]interface{})["type"],
-					raw["error"].(map[string]interface{})["reason"],
-				)
-			}
-			// A successful response might still contain errors for particular documents...
-			//
-		}
+		data = append([]byte(`{"index":{}}`+"\n"), data...)
+		getWriter(hook).Write(append(data, '\n'))
 		return nil
 	}, nil
 }

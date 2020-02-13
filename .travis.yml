@@ -6,7 +6,7 @@ go:
 notifications:
   email:
     recipients:
-      - liuzoxan@gmail.com # Current maintainer
+      - ask@artprima.cz # Current maintainer
     on_success: change
     on_failure: always
 

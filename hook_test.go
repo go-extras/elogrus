@@ -151,7 +151,7 @@ func TestError(t *testing.T) {
 		Error("Failed to handle invalid api response")
 
 	// Allow time for data to be processed.
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	var buf bytes.Buffer
 	query := map[string]interface{}{
@@ -220,7 +220,7 @@ func TestError(t *testing.T) {
 	if !ok {
 		t.Fatalf("Value is not float64 %T", r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"])
 	}
-	if !(val > 1) {
+	if !(val >= 1) {
 		t.Error("No log created")
 		t.FailNow()
 	}
@@ -228,12 +228,20 @@ func TestError(t *testing.T) {
 	if r["hits"].(map[string]interface{})["hits"] == nil {
 		t.Fatalf("Missing hits.hits")
 	}
-	data, ok := r["hits"].(map[string]interface{})["hits"].([]map[string]interface{})
+	data, ok := r["hits"].(map[string]interface{})["hits"].([]interface{})
 	if !ok {
-		t.Fatalf("hits.hits is not []map[string]interface{}")
+		t.Fatalf("hits.hits is not []interface{}")
 	}
 
 	for _, v := range data {
-		log.Println(v["_id"]) // TODO: write actual tests
+		d := v.(map[string]interface{})
+		if d["_source"].(map[string]interface{})["message"].(string) != "Failed to handle invalid api response" {
+			t.Error("Unexpected message value")
+			t.FailNow()
+		}
+		if d["_source"].(map[string]interface{})["data"].(map[string]interface{})["error"].(string) != "this is error" {
+			t.Error("Unexpected data.error value")
+			t.FailNow()
+		}
 	}
 }
