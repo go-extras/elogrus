@@ -45,7 +45,7 @@ func hookTest(hookfunc NewHookFunc, indexName string, t *testing.T) {
 		log.Panic(err)
 	}
 
-	client.Indices.Delete([]string{indexName})
+	_, _ = client.Indices.Delete([]string{indexName})
 
 	hook, err := hookfunc(client, "localhost", logrus.DebugLevel, indexName)
 	if err != nil {
@@ -138,7 +138,7 @@ func TestError(t *testing.T) {
 		log.Panic(err)
 	}
 
-	client.Indices.Delete([]string{"errorlog"})
+	_, _ = client.Indices.Delete([]string{"errorlog"})
 
 	hook, err := NewElasticHook(client, "localhost", logrus.DebugLevel, "errorlog")
 	if err != nil {

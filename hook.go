@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"gopkg.in/go-extras/elogrus.v7/internal/bulk"
@@ -163,7 +162,9 @@ func (hook *ElasticHook) Fire(entry *logrus.Entry) error {
 }
 
 func asyncFireFunc(entry *logrus.Entry, hook *ElasticHook) error {
-	go syncFireFunc(entry, hook)
+	go func() {
+		_ = syncFireFunc(entry, hook) // TODO: how can we handle the error?
+	}()
 	return nil
 }
 
@@ -237,13 +238,13 @@ func makeBulkFireFunc(client *elasticsearch.Client) (fireFunc, error) {
 			if res.IsError() {
 				raw := make(map[string]interface{})
 				if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
-					return errors.New(fmt.Sprintf("Failure to to parse response body: %s", err.Error()))
+					return fmt.Errorf("failure to to parse response body: %s", err.Error())
 				} else {
-					return errors.New(fmt.Sprintf("Error: [%d] %s: %s",
+					return fmt.Errorf("error: [%d] %s: %s",
 						res.StatusCode,
 						raw["error"].(map[string]interface{})["type"],
 						raw["error"].(map[string]interface{})["reason"],
-					))
+					)
 				}
 				// A successful response might still contain errors for particular documents...
 				//
@@ -265,7 +266,7 @@ func makeBulkFireFunc(client *elasticsearch.Client) (fireFunc, error) {
 			return err
 		}
 		data = append([]byte(`{"index":{}}`+"\n"), data...)
-		getWriter(hook).Write(append(data, '\n'))
+		_, _ = getWriter(hook).Write(append(data, '\n'))
 		return nil
 	}, nil
 }

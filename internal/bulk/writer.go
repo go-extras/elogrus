@@ -53,7 +53,7 @@ func NewBulkWriter(flushInterval time.Duration, flushFunc FlushFunc) *Writer {
 // errorHandler - whenever your flushFunc returns an error, it can be processed in this function
 func NewBulkWriterWithErrorHandler(flushInterval time.Duration, flushFunc FlushFunc, errorHandler ErrorHandlerFunc) *Writer {
 	bw := &Writer{
-		buf:          make([]byte, 0, 0),
+		buf:          make([]byte, 0),
 		data:         make(chan []byte),
 		quit:         make(chan bool),
 		flushFunc:    flushFunc,

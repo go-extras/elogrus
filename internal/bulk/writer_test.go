@@ -27,7 +27,7 @@ func TestWriter_Write(t *testing.T) {
 	)
 	n, err := w.Write([]byte(TestData))
 	if err != nil {
-		t.Errorf("Error closing the writer: %s", err.Error())
+		t.Errorf("Error writing to the writer: %s", err.Error())
 		t.FailNow()
 	}
 	if n != len(TestData) {
@@ -64,14 +64,19 @@ func TestWriter_Flush(t *testing.T) {
 			t.FailNow()
 		},
 	)
-	w.Write([]byte(TestData))
+	_, err := w.Write([]byte(TestData))
+	if err != nil {
+		t.Errorf("Error writing to the writer: %s", err.Error())
+		t.FailNow()
+	}
+
 	time.Sleep(10 * time.Millisecond)
 	if atomic.LoadInt32(&called) > 0 {
 		t.Error("Flush was unexpectedly called")
 		t.FailNow()
 	}
 
-	err := w.Flush()
+	err = w.Flush()
 	if err != nil {
 		t.Errorf("Error flushing the writer: %s", err.Error())
 		t.FailNow()
