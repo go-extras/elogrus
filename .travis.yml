@@ -1,4 +1,3 @@
-sudo: required
 language: go
 go:
     - stable
@@ -15,6 +14,7 @@ services:
   
 before_script:
   - sudo sysctl -w vm.max_map_count=262144
+  - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $GOPATH/bin v1.23.1
 
 before_install:
   - docker run -d -p 7777:9200 -e "discovery.type=single-node" --name elk docker.elastic.co/elasticsearch/elasticsearch:7.0.0
@@ -25,3 +25,10 @@ before_install:
 install:
   - go get -v ./...
   - travis_wait 5
+
+# script always runs to completion (set +e). If we have linter issues AND a
+# failing test, we want to see both. Configure golangci-lint with a
+# .golangci.yml file at the top level of your repo.
+script:
+  - golangci-lint run       # run a bunch of code checkers/linters in parallel
+  - go test -v -race ./...  # Run all the tests with the race detector enabled
