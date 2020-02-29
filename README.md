@@ -1,6 +1,10 @@
 # Elasticsearch Hook for [Logrus](https://github.com/sirupsen/logrus) <img src="http://i.imgur.com/hTeVwmJ.png" width="40" height="40" alt=":walrus:" class="emoji" title=":walrus:"/>
 <img src="https://travis-ci.org/go-extras/elogrus.svg?branch=master" />
 
+## Intro
+
+This is a hard fork of github.com/sohlich/elogrus. The original library used github.com/olivere/elastic, which is a non-official Elasticsearch go client. This fork uses [the official client library](github.com/elastic/go-elasticsearch).
+
 ## Releases
 This fork is designed to use the official Go client for Elasticsearch
 
