@@ -14,7 +14,7 @@ This fork is designed to use the official Go client for Elasticsearch
 
 Elasticsearch version | Elastic Go Client version  | Package URL                                                          | Remarks |
 ----------------------|----------------------------|----------------------------------------------------------------------|---------|
-7.x                   | 7.0                        | [`gopkg.in/go-extras/elogrus.v7`](http://gopkg.in/sohlich/elogrus.v7)| Actively maintained.
+7.x                   | 7.0                        | [`gopkg.in/go-extras/elogrus.v7`](https://gopkg.in/go-extras/elogrus.v7)| Actively maintained.
 
 *For Elasticsearch 7.x*
 ```bash
