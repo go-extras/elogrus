@@ -14,13 +14,13 @@ This fork is designed to use the official Go client for Elasticsearch
 
 Elasticsearch version | Elastic Go Client version  | Package URL                                                          | Remarks |
 ----------------------|----------------------------|----------------------------------------------------------------------|---------|
-7.x                   | 7.0                        | [`gopkg.in/go-extras/elogrus.v7`](https://gopkg.in/go-extras/elogrus.v7)| Actively maintained.
+6.x                   | 6.0                        | [`gopkg.in/go-extras/elogrus.v6`](https://gopkg.in/go-extras/elogrus.v6)| Actively maintained.
 
-*For Elasticsearch 7.x*
+*For Elasticsearch 6.x*
 ```bash
-# We name v7 to align with elastic v7
-go get github.com/elastic/go-elasticsearch/v7
-go get gopkg.in/go-extras/elogrus.v7
+# We name v6 to align with elastic v6
+go get github.com/elastic/go-elasticsearch/v6
+go get gopkg.in/go-extras/elogrus.v6
 ```
 
 ## Changelog
@@ -32,9 +32,9 @@ go get gopkg.in/go-extras/elogrus.v7
 package main
 
 import (
-	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v6"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/go-extras/elogrus.v7"
+	"gopkg.in/go-extras/elogrus.v6"
 )
 
 func main() {
