@@ -5,15 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/go-elasticsearch/v7/esapi"
-	"gopkg.in/go-extras/elogrus.v7/internal/bulk"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v6"
+	"github.com/elastic/go-elasticsearch/v6/esapi"
 	"github.com/sirupsen/logrus"
+
+	"github.com/bgsrb/elogrus/v6/internal/bulk"
 )
 
 var (
