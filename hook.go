@@ -39,13 +39,13 @@ type ElasticHook struct {
 }
 
 type message struct {
-	Host      string `json:"host,omitempty"`
-	Timestamp string `json:"@timestamp"`
-	File      string `json:"file,omitempty"`
-	Func      string `json:"func,omitempty"`
-	Message   string `json:"message,omitempty"`
-	Data      logrus.Fields
-	Level     string `json:"level,omitempty"`
+	Host      string        `json:"host,omitempty"`
+	Timestamp string        `json:"@timestamp"`
+	File      string        `json:"file,omitempty"`
+	Func      string        `json:"func,omitempty"`
+	Message   string        `json:"message,omitempty"`
+	Data      logrus.Fields `json:"data,omitempty"`
+	Level     string        `json:"level,omitempty"`
 }
 
 // NewElasticHook creates new hook.
