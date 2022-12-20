@@ -10,11 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v7/esapi"
-	"gopkg.in/go-extras/elogrus.v7/internal/bulk"
-
 	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/go-extras/elogrus.v7/internal/bulk"
 )
 
 var (
