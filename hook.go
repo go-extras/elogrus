@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/go-elasticsearch/v7/esapi"
-	"gopkg.in/go-extras/elogrus.v7/internal/bulk"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/elastic/go-elasticsearch/v7/esapi"
+	"gopkg.in/go-extras/elogrus.v7/internal/bulk"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/sirupsen/logrus"
@@ -26,6 +27,10 @@ type IndexNameFunc func() string
 
 type fireFunc func(entry *logrus.Entry, hook *ElasticHook) error
 
+// ModifyMessageFunc is a function that can be used to generate the object sent to elasticsearch.
+// The output value should be useable by json.Marshal
+type ModifyMessageFunc func(entry *logrus.Entry, message *Message) interface{}
+
 // ElasticHook is a logrus
 // hook for ElasticSearch
 type ElasticHook struct {
@@ -36,9 +41,14 @@ type ElasticHook struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	fireFunc  fireFunc
+
+	// MessageModifierFunc is a function that can be called to create a
+	// custom object to send to Elasticsearch for setting root fields
+	// like "trace.id" or customizing other parts of the message
+	MessageModifierFunc ModifyMessageFunc
 }
 
-type message struct {
+type Message struct {
 	Host      string        `json:"host,omitempty"`
 	Timestamp string        `json:"@timestamp"`
 	File      string        `json:"file,omitempty"`
@@ -170,7 +180,7 @@ func asyncFireFunc(entry *logrus.Entry, hook *ElasticHook) error {
 	return nil
 }
 
-func createMessage(entry *logrus.Entry, hook *ElasticHook) *message {
+func createMessage(entry *logrus.Entry, hook *ElasticHook) interface{} {
 	level := entry.Level.String()
 
 	if e, ok := entry.Data[logrus.ErrorKey]; ok && e != nil {
@@ -186,7 +196,7 @@ func createMessage(entry *logrus.Entry, hook *ElasticHook) *message {
 		function = entry.Caller.Function
 	}
 
-	return &message{
+	msg := &Message{
 		hook.host,
 		entry.Time.UTC().Format(time.RFC3339Nano),
 		file,
@@ -195,6 +205,12 @@ func createMessage(entry *logrus.Entry, hook *ElasticHook) *message {
 		entry.Data,
 		strings.ToUpper(level),
 	}
+
+	if hook.MessageModifierFunc != nil {
+		return hook.MessageModifierFunc(entry, msg)
+	}
+
+	return msg
 }
 
 func syncFireFunc(entry *logrus.Entry, hook *ElasticHook) error {
