@@ -5,4 +5,5 @@ go 1.13
 require (
 	github.com/elastic/go-elasticsearch/v6 v6.8.10
 	github.com/sirupsen/logrus v1.8.1
+	golang.org/x/sys v0.3.0 // indirect
 )
