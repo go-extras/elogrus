@@ -13,6 +13,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/sirupsen/logrus"
+
 	"gopkg.in/go-extras/elogrus.v8/internal/bulk"
 )
 
@@ -173,7 +174,7 @@ func (hook *ElasticHook) Fire(entry *logrus.Entry) error {
 }
 
 func asyncFireFunc(entry *logrus.Entry, hook *ElasticHook) error {
-	e := entry.Dup()
+	e := entry
 	go func() {
 		_ = syncFireFunc(e, hook) // TODO: return channel with error
 	}()
