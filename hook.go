@@ -174,9 +174,9 @@ func (hook *ElasticHook) Fire(entry *logrus.Entry) error {
 }
 
 func asyncFireFunc(entry *logrus.Entry, hook *ElasticHook) error {
-	e := entry
+	e := *entry
 	go func() {
-		_ = syncFireFunc(e, hook) // TODO: return channel with error
+		_ = syncFireFunc(&e, hook) // TODO: return channel with error
 	}()
 	return nil
 }

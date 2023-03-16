@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"testing"
@@ -33,7 +33,7 @@ func hookTest(hookfunc NewHookFunc, indexName string, t *testing.T) {
 	if r, err := http.Get("http://127.0.0.1:7777"); err != nil {
 		log.Fatal("Elastic not reachable")
 	} else {
-		buf, _ := ioutil.ReadAll(r.Body)
+		buf, _ := io.ReadAll(r.Body)
 		r.Body.Close()
 		fmt.Println(string(buf))
 	}
