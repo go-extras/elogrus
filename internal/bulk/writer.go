@@ -40,7 +40,9 @@ type Writer struct {
 
 // NewBulkWriter creates a new bulk.Writer instance
 // flushInterval - how often to call the flushFunc, if set to a nonpositive value will effectively turn
-//                 off automatic flushing
+//
+//	off automatic flushing
+//
 // flushFunc - defines what to do on flush
 func NewBulkWriter(flushInterval time.Duration, flushFunc FlushFunc) *Writer {
 	return NewBulkWriterWithErrorHandler(flushInterval, flushFunc, NoErrorHandler)
@@ -48,7 +50,9 @@ func NewBulkWriter(flushInterval time.Duration, flushFunc FlushFunc) *Writer {
 
 // NewBulkWriterWithErrorHandler creates a new bulk.Writer instance
 // flushInterval - how often to call the flushFunc, if set to a nonpositive value will effectively turn
-//                 off automatic flushing
+//
+//	off automatic flushing
+//
 // flushFunc - defines what to do on flush
 // errorHandler - whenever your flushFunc returns an error, it can be processed in this function
 func NewBulkWriterWithErrorHandler(flushInterval time.Duration, flushFunc FlushFunc, errorHandler ErrorHandlerFunc) *Writer {

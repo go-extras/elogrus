@@ -12,15 +12,23 @@ This fork is designed to use the official Go client for Elasticsearch
 
 *Here's the version matrix:*
 
-Elasticsearch version | Elastic Go Client version  | Package URL                                                          | Remarks |
-----------------------|----------------------------|----------------------------------------------------------------------|---------|
-7.x                   | 7.0                        | [`gopkg.in/go-extras/elogrus.v7`](https://gopkg.in/go-extras/elogrus.v7)| Actively maintained.
+Elasticsearch version | Elastic Go Client version | Package URL                                                              | Remarks |
+----------------------|---------------------------|--------------------------------------------------------------------------|---------|
+7.x                   | 7.0                       | [`gopkg.in/go-extras/elogrus.v7`](https://gopkg.in/go-extras/elogrus.v7) | Actively maintained.
+8.x                   | 8.0                       | [`gopkg.in/go-extras/elogrus.v8`](https://gopkg.in/go-extras/elogrus.v8) | Actively maintained.
 
 *For Elasticsearch 7.x*
 ```bash
 # We name v7 to align with elastic v7
 go get github.com/elastic/go-elasticsearch/v7
 go get gopkg.in/go-extras/elogrus.v7
+```
+
+*For Elasticsearch 8.x*
+```bash
+# We name v8 to align with elastic v8
+go get github.com/elastic/go-elasticsearch/v8
+go get gopkg.in/go-extras/elogrus.v8
 ```
 
 ## Changelog

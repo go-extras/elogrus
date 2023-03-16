@@ -1,0 +1,46 @@
+name: Integration
+on:
+  push:
+    branches:
+      - master
+      - v8
+      - v7
+      - v6
+  pull_request:
+    branches:
+      - master
+      - v8
+      - v7
+      - v6
+jobs:
+  build:
+    runs-on: '${{ matrix.os }}'
+    services:
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: false
+        options: >-
+          --health-cmd "curl http://localhost:9200/_cluster/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 7777:9200
+          #- 9300:9300
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - run: go get -v ./...
+      - run: >-
+          mkdir -p ./bin &&
+          curl -sSfL
+          https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh
+          | sh -s -- -b ./bin v1.51.2
+      - run: ./bin/golangci-lint run
+      - run: sleep 60 # make sure Elasticsearch boots up
+      - run: go test -v -race ./...

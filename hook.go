@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v7"
-	"github.com/elastic/go-elasticsearch/v7/esapi"
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/go-extras/elogrus.v7/internal/bulk"
+	"gopkg.in/go-extras/elogrus.v8/internal/bulk"
 )
 
 var (
@@ -173,8 +173,9 @@ func (hook *ElasticHook) Fire(entry *logrus.Entry) error {
 }
 
 func asyncFireFunc(entry *logrus.Entry, hook *ElasticHook) error {
+	e := entry.Dup()
 	go func() {
-		_ = syncFireFunc(entry, hook) // TODO: how can we handle the error?
+		_ = syncFireFunc(e, hook) // TODO: return channel with error
 	}()
 	return nil
 }
