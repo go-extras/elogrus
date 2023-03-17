@@ -31,18 +31,15 @@ go get github.com/elastic/go-elasticsearch/v8
 go get gopkg.in/go-extras/elogrus.v8
 ```
 
-## Changelog
-- make a fork and switch to the official [The official Go client for Elasticsearch](https://github.com/elastic/go-elasticsearch).
-
 ## Usage
 
 ```go
 package main
 
 import (
-	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/go-extras/elogrus.v7"
+	"gopkg.in/go-extras/elogrus.v8"
 )
 
 func main() {
@@ -71,4 +68,40 @@ func main() {
 	...
 	elogrus.NewAsyncElasticHook(client, "localhost", logrus.DebugLevel, "mylog")
 	...
+```
+
+### ECS Logging
+
+It is possible to produce log entries compatible with [ECS Logging format](https://www.elastic.co/guide/en/ecs-logging/overview/current/intro.html) using
+the [official ECS library](https://www.elastic.co/guide/en/ecs-logging/go-logrus/current/intro.html) for `logrus`.
+
+```go
+package main
+
+import (
+	"json"
+
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/sirupsen/logrus"
+	"go.elastic.co/ecslogrus"
+	"gopkg.in/go-extras/elogrus.v8"
+)
+
+func ECSLogMessageModifierFunc(formatter *ecslogrus.Formatter) func(*logrus.Entry, *elogrus.Message) any {
+	return func(entry *logrus.Entry, message *elogrus.Message) any {
+		var data json.RawMessage
+		data, err := formatter.Format(entry)
+		if err != nil {
+			return entry // in case of an error just preserve the original entry
+		}
+		return data
+	}
+
+}
+
+func main() {
+	// ...
+	hook.MessageModifierFunc = ECSLogMessageModifierFunc(&ecslogrus.Formatter{})
+	// ...
+}
 ```
