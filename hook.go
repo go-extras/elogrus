@@ -231,6 +231,10 @@ func syncFireFunc(entry *logrus.Entry, hook *ElasticHook) error {
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode > 399 {
+		err = fmt.Errorf(res.String())
+	}
+
 	return err
 }
 
